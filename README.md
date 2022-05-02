@@ -1,560 +1,586 @@
-# Medium’s API documentation
+# Treecko’s API documentation - CareReport
 
-This repository contains the documentation for [Medium](https://medium.com)’s API.
+This document contains the documentation for CareReport's Controller.
 
 #### Contents
 
 - [Overview](#1-overview)
-- [Authentication](#2-authentication)
-  - [Browser-based authentication](#21-browser-based-authentication)
-  - [Self-issued access tokens](#22-self-issued-access-tokens)
-- [Resources](#3-resources)
-  - [Users](#31-users)
-  - [Publications](#32-publications)
-  - [Posts](#33-posts)
-  - [Images](#34-images)
-- [Testing](#4-testing)
+- [EndPoints](#2-endpoints)
+  - [GET - Care Report Types](#21-carereport-types)
+  - [GET - Care Report Tags](#22-carereport-tags)
+  - [GET - Care Report by Patient](#23-carereport-patients)
+  - [GET - Care Report by Working Group](#24-carereport-patients-group)
+  - [POST - Create Care Report](#25-carereport-create)
+  - [POST - Add Care Report Attachment](#26-carereport-add-attachment)
 
 ## 1. Overview
 
-Medium’s API is a JSON-based OAuth2 API. All requests are made to endpoints beginning:
-`https://api.medium.com/v1`
+Treecko's Care report endpoint has the boundery to deal with all requests regarding Patient's care report and all services needed to suport its feature. Care reports services basicaly deal with Noventi structure throught Hoothoot's service, to delivery is result. In the next section it will be possible to find all services designed to delievery and maintain its solution.
 
-All requests must be secure, i.e. `https`, not `http`.
+### 1.1. Jira Users Story
 
-#### Developer agreement
+| Ticket                                                      | Type         |
+| ------------------------------------------------------------|--------------|
+| [DEV-262 ](https://kenbi-tech.atlassian.net/browse/DEV-262) | EPIC         |
+| [DEV-160 ](https://kenbi-tech.atlassian.net/browse/DEV-160) | User Story   |
+| [DEV-327 ](https://kenbi-tech.atlassian.net/browse/DEV-327) | User Story   |
+| [DEV-335 ](https://kenbi-tech.atlassian.net/browse/DEV-335) | User Story   |
+| [DEV-525 ](https://kenbi-tech.atlassian.net/browse/DEV-525) | User Story   |
 
-By using Medium’s API, you agree to our [terms of service](https://medium.com/@feerst/2b405a832a2f).
 
-## 2. Authentication
+## 2. Endpoints
 
-In order to publish on behalf of a Medium account, you will need an access token. An access token grants limited access to a user’s account. We offer two ways to acquire an access token: browser-based OAuth authentication, and self-issued access tokens.
+The API is RESTful and arranged around resources. All requests must be made using `https` with an integration or user's token defined for each scope.
 
-We recommend using self-issued access tokens. Browser-based authentication is supported **for existing integrations only**.
+The first request you make should be to acquire a credential token. This will confirm that your access token is valid, and give you a user id and claims that you will need for subsequent requests. If you don't know yet how to get a valid token you can check the authentication section on this document.
 
-###  2.1. Self-issued access tokens
+### 2.1. Carereport Types
 
-Self-issued access tokens (described in user-facing copy as integration tokens) are explicitly designed for desktop integrations where implementing browser-based authentication is non-trivial, or software like plugins where it is impossible to secure a client secret. You should not request that a user give you an integration token if you don’t meet these criteria. Users will be cautioned within Medium to treat integration tokens like passwords, and dissuaded from making them generally available.
+Returns a list with all care report types and its subtypes grouped.
 
-Users can request an access token by emailing yourfriends@medium.com. We will then grant access on the [Settings page](https://medium.com/me/settings) of their Medium account.
+**Method:** GET <br>
+**URL:** /carereport/types <br>
+**Request parameter:** None 
 
-You should instruct your user to visit this URL and generate an integration token from the `Integration Tokens` section. You should suggest a description for this
-token - typically the name of your product or feature - and use it consistently for all users.
-
-Self-issued access tokens do not expire, though they may be revoked by the user at any time.
-
-### 2.2. Browser-based authentication
-
-**IMPORTANT:** We don't allow any new integrations with our API.
-
-If you already have an existing integration, the first step is to acquire a short term authorization code by sending the user to our authorization URL so they can grant access to your integration.
+#### Example request:
 
 ```
-https://medium.com/m/oauth/authorize?client_id={{clientId}}
-    &scope=basicProfile,publishPost
-    &state={{state}}
-    &response_type=code
-    &redirect_uri={{redirectUri}}
-```
-
-With the following parameters:
-
-| Parameter       | Type     | Required?  | Description                                     |
-| -------------   |----------|------------|-------------------------------------------------|
-| `client_id`     | string   | required   | The clientId we will supply you that identifies your integration. |
-| `scope`         | string   | required   | The access that your integration is requesting, comma separated. Currently, there are three valid scope values, which are listed below. Most integrations should request `basicProfile` and `publishPost` |
-| `state`         | string   | required   | Arbitrary text of your choosing, which we will repeat back to you to help you prevent request forgery. |
-| `response_type` | string   | required   | The field currently has only one valid value, and should be `code`.  |
-| `redirect_uri`  | string   | required   | The URL where we will send the user after they have completed the login dialog. This must exactly match one of the callback URLs you provided when creating your app. This field should be URL encoded. |
-
-The following scope values are valid:
-
-| Scope              | Description                                                             | Extended |
-| -------------------| ----------------------------------------------------------------------- | -------- |
-| basicProfile       | Grants basic access to a user’s profile (not including their email).    | No       |
-| listPublications   | Grants the ability to list publications related to the user.            | No       |
-| publishPost        | Grants the ability to publish a post to the user’s profile.             | No       |
-| uploadImage        | Grants the ability to upload an image for use within a Medium post.     | Yes      |
-
-Integrations are not permitted to request extended scope from users without explicit prior permission from Medium. Attempting to request these permissions through the standard user authentication flow will result in an error if extended scope has not been authorized for an integration.
-
-If the user grants your request for access, we will send them back to the specified `redirect_uri` with a state and code parameter:
-
-```
-https://example.com/callback/medium?state={{state}}
-    &code={{code}}
-```
-
-With the following parameters:
-
-| Parameter       | Type     | Required?  | Description                                     |
-| -------------   |----------|------------|-------------------------------------------------|
-| `state`         | string   | required   | The state you specified in the request.         |
-| `code`          | string   | required   | A short-lived authorization code that may be exchanged for an access token. |
-
-If the user declines access, we will send them back to the specified `redirect_uri` with an error parameter:
-
-```
-https://example.com/callback/medium?error=access_denied
-```
-
-Once you have an authorization code, you may exchange it for a long-lived access token with which you can make authenticated requests on behalf of the user. To acquire an access token, make a form-encoded server-side POST request:
-
-```
-POST /v1/tokens HTTP/1.1
-Host: api.medium.com
-Content-Type: application/x-www-form-urlencoded
-Accept: application/json
-Accept-Charset: utf-8
-
-code={{code}}&client_id={{client_id}}&client_secret={{client_secret}}&grant_type=authorization_code&redirect_uri={{redirect_uri}}
-```
-
-With the following parameters:
-
-| Parameter       | Type     | Required?  | Description                                     |
-| -------------   |----------|------------|-------------------------------------------------|
-| `code`          | string   | required   | The authorization code you received in the previous step. |
-| `client_id`     | string   | required   | Your integration’s `clientId` |
-| `client_secret` | string   | required   | Your integration’s `clientSecret` |
-| `grant_type`    | string   | required   | The literal string "authorization_code" |
-| `redirect_uri`  | string   | required   | The same redirect_uri you specified when requesting an authorization code. |
-
-If successful, you will receive back an access token response:
-
-```
-HTTP/1.1 201 OK
-Content-Type: application/json; charset=utf-8
-
-{
-  "token_type": "Bearer",
-  "access_token": {{access_token}},
-  "refresh_token": {{refresh_token}},
-  "scope": {{scope}},
-  "expires_at": {{expires_at}}
-}
-```
-
-With the following parameters:
-
-| Parameter       | Type         | Required?  | Description                                     |
-| -------------   |--------------|------------|-------------------------------------------------|
-| `token_type`    | string       | required   | The literal string "Bearer"                     |
-| `access_token`  | string       | required   | A token that is valid for 60 days and may be used to perform authenticated requests on behalf of the user. |
-| `refresh_token` | string       | required   | A token that does not expire which may be used to acquire a new `access_token`.                            |
-| `scope`         | string array | required   | The scopes granted to your integration.         |
-| `expires_at`    | int64        | required   | The timestamp in unix time when the access token will expire |
-
-Each access token is valid for 60 days. When an access token expires, you may request a new token using the refresh token. Refresh tokens do not expire. Both access tokens and refresh tokens may be revoked by the user at any time. **You must treat both access tokens and refresh tokens like passwords and store them securely.**
-
-Both access tokens and refresh tokens are consecutive strings of hex digits, like this:
-
-```
-181d415f34379af07b2c11d144dfbe35d
-```
-
-To acquire a new access token using a refresh token, make the following form-encoded request:
-
-```
-POST /v1/tokens HTTP/1.1
-Host: api.medium.com
-Content-Type: application/x-www-form-urlencoded
-Accept: application/json
-Accept-Charset: utf-8
-
-refresh_token={{refresh_token}}&client_id={{client_id}}
-&client_secret={{client_secret}}&grant_type=refresh_token
-```
-
-With the following parameters:
-
-| Parameter       | Type     | Required?  | Description                                     |
-| -------------   |----------|------------|-------------------------------------------------|
-| `refresh_token` | string   | required   | A valid refresh token.                          |
-| `client_id`     | string   | required   | Your integration’s `clientId`                   |
-| `client_secret` | string   | required   | Your integration’s `clientSecret`               |
-| `grant_type`    | string   | required   | The literal string "refresh_token"              |
-
-## 3. Resources
-
-The API is RESTful and arranged around resources. All requests must be made with an integration token. All requests must be made using `https`.
-
-Typically, the first request you make should be to acquire user details. This will confirm that your access token is valid, and give you a user id that you will need for subsequent requests.
-
-### 3.1. Users
-
-#### Getting the authenticated user’s details
-Returns details of the user who has granted permission to the application.
-
-```
-GET https://api.medium.com/v1/me
-```
-
-Example request:
-
-```
-GET /v1/me HTTP/1.1
-Host: api.medium.com
-Authorization: Bearer 181d415f34379af07b2c11d144dfbe35d
+HTTP/1.1
+GET https://treecko.dev.backend.kenbi.systems/carereport/types
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
 Content-Type: application/json
 Accept: application/json
 Accept-Charset: utf-8
 ```
 
-The response is a User object within a data envelope.
+The response is a CareReportType object grouped by its unique identifier within a data envelope where every care report type has it own list of subtypes as follow:
 
-Example response:
+#### Example response:
 
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
 
-{
-  "data": {
-    "id": "5303d74c64f66366f00cb9b2a94f3251bf5",
-    "username": "majelbstoat",
-    "name": "Jamie Talbot",
-    "url": "https://medium.com/@majelbstoat",
-    "imageUrl": "https://images.medium.com/0*fkfQiTzT7TlUGGyI.png"
-  }
-}
+[
+    {
+        "id": "457efcb8-e0de-4c7c-b6b0-fd3dda00e432",
+        "name": "Altagsbegleitung",
+        "subTypes": [
+            {
+                "id": "f4110a61-7f49-46b6-a82b-ecd4f983b34a",
+                "name": "Verlaufsdokumentation"
+            },
+            {
+                "id": "15ce953a-13fa-4cb5-b016-3ba8d6537907",
+                "name": "Abweichungen"
+            },
+            {
+                "id": "96e4f576-231a-49ae-9f9e-95ea244991ac",
+                "name": "Sonstiges"
+            },
+            {
+                "id": "3e36498c-c20b-468c-94d4-de526203336a",
+                "name": "Termine"
+            },
+            {
+                "id": "59640c8f-6852-4ec9-95f1-758ad9142241",
+                "name": "Beschwerde / Konflikt"
+            },
+            {
+                "id": "f1335377-6c6b-4495-aea1-6ea49e488422",
+                "name": "Ereignis / Akutsituation"
+            },
+            {
+                "id": "6173ef3f-6d90-4345-b8ef-28a9cbca4b6c",
+                "name": "Beratung"
+            }
+        ]
+    }
+]
 ```
 
-Where a User object is:
+Where a CareReportType object is:
 
 | Field      | Type   | Description                                     |
 | -----------|--------|-------------------------------------------------|
-| id         | string | A unique identifier for the user.               |
-| username   | string | The user’s username on Medium.                  |
-| name       | string | The user’s name on Medium.                      |
-| url        | string | The URL to the user’s profile on Medium         |
-| imageUrl   | string | The URL to the user’s avatar on Medium          |
+| id         | string | A unique identifier for the type inside Noventi system. |
+| name       | string | The care report type’s name on Noventi. This field is the main group and has a bunch of subtypes.  |
 
-Possible errors:
+and a SubType object is:
+
+| Field      | Type   | Description                                     |
+| -----------|--------|-------------------------------------------------|
+| id         | string | A unique identifier for the subtype.            |
+| name       | string | The care report subtype name on Noventi. The id field is mandatory to create a new Care Report.  |
+
+
+#### Possible errors message:
 
 | Error code           | Description                                     |
 | ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
 | 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 404 Not Found        | The was not found the object on database following the search parameters. |
 
 
-### 3.2. Publications
+### 2.2. Carereport Tags
 
-#### Listing the user’s publications
+Returns a list with all care report tags and its group.
 
-Returns a full list of publications that the user is related to in some way: This includes all publications the user is subscribed to, writes to, or edits. This endpoint offers a set of data similar to what you’ll see at https://medium.com/me/publications when logged in.
+**Method:** GET <br>
+**URL:** /carereport/types <br>
+**Request parameter:** None 
 
-The REST API endpoint exposes this list of publications as a collection of resources under the user. A request to fetch a list of publications for a user looks like this:
 
-```
-GET https://api.medium.com/v1/users/{{userId}}/publications
-```
-
-The response is a list of publication objects. An empty array is returned if user doesn’t have relations to any publications. The response array is wrapped in a data envelope. This endpoint will return all publications in which a user has a role of "editor" or "writer" along with a maximum of 200 other publications the user follows or has other relationships with.
-
-Example response:
+#### Example request:
 
 ```
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=utf-8
-
-{
-  "data": [
-    {
-      "id": "b969ac62a46b",
-      "name": "About Medium",
-      "description": "What is this thing and how does it work?",
-      "url": "https://medium.com/about",
-      "imageUrl": "https://cdn-images-1.medium.com/fit/c/200/200/0*ae1jbP_od0W6EulE.jpeg"
-    },
-    {
-      "id": "b45573563f5a",
-      "name": "Developers",
-      "description": "Medium’s Developer resources",
-      "url": "https://medium.com/developers",
-      "imageUrl": "https://cdn-images-1.medium.com/fit/c/200/200/1*ccokMT4VXmDDO1EoQQHkzg@2x.png"
-    }
-  ]
-}
+HTTP/1.1
+GET https://treecko.dev.backend.kenbi.systems/carereport/tags
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
+Content-Type: application/json
+Accept: application/json
+Accept-Charset: utf-8
 ```
 
-Where a Publication object is:
+The response is a CareReportTag object grouped by its unique identifier within a data envelope where every care report tag has it own list of tag as follow:
 
-| Field       | Type   | Description                                     |
-| ------------|--------|-------------------------------------------------|
-| id          | string | A unique identifier for the publication.        |
-| name        | string | The publication’s name on Medium.               |
-| description | string | Short description of the publication            |
-| url         | string | The URL to the publication’s homepage           |
-| imageUrl    | string | The URL to the publication’s image/logo         |
-
-Possible errors:
-
-| Error code           | Description                                                                           |
-| ---------------------|---------------------------------------------------------------------------------------|
-| 401 Unauthorized     | The `accessToken` is invalid, lacks the `listPublications` scope or has been revoked. |
-| 403 Forbidden        | The request attempts to list publications for another user.                           |
-
-
-#### Fetching contributors for a publication
-
-This endpoint returns a list of contributors for a given publication. In other words, a list of Medium users who are allowed to publish under a publication, as well as a description of their exact role in the publication (for now, either an editor or a writer). The API endpoint exposes the contributors as list of resources under a publication. An example request looks like this:
-
-```
-GET https://api.medium.com/v1/publications/{{publicationId}}/contributors
-```
-
-In the response, each contributor is represented with the ID of the publication, the ID of the user as well as the role of this user in this publication. An example response looks like this:
+#### Example response:
 
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
 
-{
-  "data": [
+[
     {
-      "publicationId": "b45573563f5a",
-      "userId": "13a06af8f81849c64dafbce822cbafbfab7ed7cecf82135bca946807ea351290d",
-      "role": "editor"
-    },
-    {
-      "publicationId": "b45573563f5a",
-      "userId": "1c9c63b15b874d3e354340b7d7458d55e1dda0f6470074df1cc99608a372866ac",
-      "role": "editor"
-    },
-    {
-      "publicationId": "b45573563f5a",
-      "userId": "1cc07499453463518b77d31650c0b53609dc973ad8ebd33690c7be9236e9384ad",
-      "role": "editor"
-    },
-    {
-      "publicationId": "b45573563f5a",
-      "userId": "196f70942410555f4b3030debc4f199a0d5a0309a7b9df96c57b8ec6e4b5f11d7",
-      "role": "writer"
-    },
-    {
-      "publicationId": "b45573563f5a",
-      "userId": "14d4a581f21ff537d245461b8ff2ae9b271b57d9554e25d863e3df6ef03ddd480",
-      "role": "writer"
-    }
-  ]
-}
+    "id": 10,
+    "group": "Risiken",
+    "tags": [
+      {
+        "id": 11,
+        "name": "Dekubitus"
+      },
+      {
+        "id": 12,
+        "name": "Sturz"
+      },
+      {
+        "id": 13,
+        "name": "Inkontinenz"
+      },
+      {
+        "id": 14,
+        "name": "Schmerz"
+      },
+      {
+        "id": 15,
+        "name": "Ernährung/Flüssigkeit"
+      },
+      {
+        "id": 16,
+        "name": "Sonstiges Risiko"
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "group": "SIS Themenfelder",
+    "tags": [
+      {
+        "id": 31,
+        "name": "Kognition+Kommunikation"
+      },
+      {
+        "id": 32,
+        "name": "Mobilität+Beweglichkeit"
+      },
+      {
+        "id": 33,
+        "name": "Krankheitsbez. Anforderungen"
+      },
+      {
+        "id": 34,
+        "name": "Selbstversorgung"
+      },
+      {
+        "id": 35,
+        "name": "Leben in soz. Beziehungen"
+      },
+      {
+        "id": 36,
+        "name": "Haushaltsführung"
+      }
+    ]
+  }
+]
 ```
 
-Where a contributor is:
+Where a CareReportGroupTag object is:
 
-| Field         | Type   | Description                                                                                                |
-| --------------|--------|------------------------------------------------------------------------------------------------------------|
-| publicationId | string | An ID for the publication. This can be lifted from response of publications above                          |
-| userId        | string | A user ID of the contributor.                                                                              |
-| role          | string | Role of the user identified by userId in the publication identified by publicationId. 'editor' or 'writer' |
+| Field      | Type    | Description                                     |
+| -----------|---------|-------------------------------------------------|
+| id         | integer | A integer value for the tag group inside Noventi system. |
+| group      | string  | The care report tag’s group name on Noventi. This field define the group name and has a bunch of tags.  |
 
-Possible errors:
+and a CareReportTag object is:
 
-| Error code           | Description                                                                           |
-| ---------------------|---------------------------------------------------------------------------------------|
-| 401 Unauthorized     | The `accessToken` is invalid, or has been revoked.                                    |
+| Field      | Type    | Description                                     |
+| -----------|---------|-------------------------------------------------|
+| id         | integer | A integer value for the tag inside Noventi system. |
+| name       | string  | The care report tag’s name on Noventi. This field define the tag name.  |
 
-### 3.3. Posts
 
-#### Creating a post
-Creates a post on the authenticated user’s profile.
+#### Possible errors message:
+
+| Error code           | Description                                     |
+| ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
+| 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 404 Not Found        | The was not found the object on database following the search parameters. |
+
+### 2.3. Carereport Patients
+
+Returns a list with all care report for a given patient from the last 30 days.
+
+**Method:** GET <br>
+**URL:** /carereport/patient/{personid} <br>
+**Request parameter:**
+
+| Parameter       | Type     | Required   | Description                                     |
+| -------------   |----------|------------|-------------------------------------------------|
+| `personid`      | string   | true       | The patient squirtle unique identifier.         |
+
+
+#### Example request:
 
 ```
-POST https://api.medium.com/v1/users/{{authorId}}/posts
+HTTP/1.1
+GET https://treecko.dev.backend.kenbi.systems/carereport/patient/25e9dbb9-7229-4ad9-9d19-afc467e5392f
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
+Content-Type: application/json
+Accept: application/json
+Accept-Charset: utf-8
 ```
 
-Where authorId is the user id of the authenticated user.
+The response is a CareReportPatient object with its Type, Subtype and also the list of Tags and Attachments:
 
-Example request:
+#### Example response:
 
 ```
-POST /v1/users/5303d74c64f66366f00cb9b2a94f3251bf5/posts HTTP/1.1
-Host: api.medium.com
-Authorization: Bearer 181d415f34379af07b2c11d144dfbe35d
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[
+  {
+    "id": "c87aaf42-3129-4eb0-acd8-823516572565",
+    "date": "2022-04-28T15:40:44Z",
+    "patientId": "25e9dbb9-7229-4ad9-9d19-afc467e5392f",
+    "employeeId": "891ab967-8228-467d-a708-bae86ad9e872",
+    "notifiableType": 2,
+    "careReportType": {
+      "id": "97e07657-21a6-4e2b-af5b-50243782adec",
+      "name": "Arzt",
+      "subTypes": null
+    },
+    "careReportSubType": {
+      "id": "96e4f576-231a-49ae-9f9e-95ea244991ac",
+      "name": null
+    },
+    "description": "Große Pflege",
+    "tags": [
+      {
+        "id": 11,
+        "name": "Dekubitus"
+      }
+    ],
+    "attachments": []
+  }
+]
+```
+
+Where a CareReportAttachmentPatient object is:
+
+| Field              | Type                | Description                                     |
+| -------------------|---------------------|-------------------------------------------------|
+| id                 | string              | A string value for the care report inside Noventi system that unique identifier the report in the system. |
+| date               | string              | The date and time the care report was created in the system.  |
+| patientid          | string              | A string value with the squirtle identifier of the patient. |
+| employeeId         | string              | A string value with the squirtle identifier of the employee. |
+| notifiableType     | integer             | A integer value to identify the flag assigned to the report on Noventi Care. This value follow its rules.|
+| careReportType     | CareReportType      | A value object with the Care Report type and its properties. |
+| careReportSubType  | CareReportSubType   | A value object with the Care Report subtype and its properties. |
+| description        | string              | A string value with a description texto for the patient's report. |
+| tags               | list of Tags        | A value object with the Care Report list of tags assigned to the report. |
+| attachments        | list of Attachment  | A value object with the Care Report attacment added to the report. |
+
+
+and a CareReportType object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value for the care report type inside Noventi system. |
+| name       | string             | The care report type’s name on Noventi.  |
+| subTypes   | CareReportSubType  | A value object with the list of Care Report subtype and its properties. For this endpoint this data is not filled. |
+
+and a CareReportSubType object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value for the care report subtype inside Noventi system. |
+| name       | string             | The care report subtype’s name on Noventi.  |
+
+and a CareReportTag object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | integer            | A integer value for the tag inside Noventi system. |
+| name       | string             | The tag description on Noventi.  |
+
+and a CareReportAttachment object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value that represents the unique identifier of the attachment. |
+| fileName   | string             | A small description to identify the file.  |
+| type       | string             | The file type.  |
+| path       | string             | Complete path of the file including the file name to allow its download.  |
+
+#### Possible errors message:
+
+| Error code           | Description                                     |
+| ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
+| 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 500 Server Error     | The server respond the error description if any exception is trow. |
+
+### 2.4. Carereport Patients Group
+
+Returns a list with all active and non archived care report for a employee and its working group.
+
+**Method:** GET <br>
+**URL:** /carereport/group/patients <br>
+**Request parameter:** None
+
+
+#### Example request:
+
+```
+HTTP/1.1
+GET https://treecko.dev.backend.kenbi.systems/carereport/group/patients
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
+Content-Type: application/json
+Accept: application/json
+Accept-Charset: utf-8
+```
+
+The response is a CareReportPatient object with its Type, Subtype and also the list of Tags and Attachments:
+
+#### Example response:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[
+  {
+    "id": "c87aaf42-3129-4eb0-acd8-823516572565",
+    "date": "2022-04-28T15:40:44Z",
+    "patientId": "25e9dbb9-7229-4ad9-9d19-afc467e5392f",
+    "employeeId": "891ab967-8228-467d-a708-bae86ad9e872",
+    "notifiableType": 2,
+    "careReportType": {
+      "id": "97e07657-21a6-4e2b-af5b-50243782adec",
+      "name": "Arzt",
+      "subTypes": null
+    },
+    "careReportSubType": {
+      "id": "96e4f576-231a-49ae-9f9e-95ea244991ac",
+      "name": null
+    },
+    "description": "Große Pflege",
+    "tags": [
+      {
+        "id": 11,
+        "name": "Dekubitus"
+      }
+    ],
+    "attachments": []
+  }
+]
+```
+
+Where a CareReportAttachmentPatient object is:
+
+| Field              | Type                | Description                                     |
+| -------------------|---------------------|-------------------------------------------------|
+| id                 | string              | A string value for the care report inside Noventi system that unique identifier the report in the system. |
+| date               | string              | The date and time the care report was created in the system.  |
+| patientid          | string              | A string value with the squirtle identifier of the patient. |
+| employeeId         | string              | A string value with the squirtle identifier of the employee. |
+| notifiableType     | integer             | A integer value to identify the flag assigned to the report on Noventi Care. This value follow its rules.|
+| careReportType     | CareReportType      | A value object with the Care Report type and its properties. |
+| careReportSubType  | CareReportSubType   | A value object with the Care Report subtype and its properties. |
+| description        | string              | A string value with a description texto for the patient's report. |
+| tags               | list of Tags        | A value object with the Care Report list of tags assigned to the report. |
+| attachments        | list of Attachment  | A value object with the Care Report attacment added to the report. |
+
+
+and a CareReportType object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value for the care report type inside Noventi system. |
+| name       | string             | The care report type’s name on Noventi.  |
+| subTypes   | CareReportSubType  | A value object with the list of Care Report subtype and its properties. For this endpoint this data is not filled. |
+
+and a CareReportSubType object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value for the care report subtype inside Noventi system. |
+| name       | string             | The care report subtype’s name on Noventi.  |
+
+and a CareReportTag object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | integer            | A integer value for the tag inside Noventi system. |
+| name       | string             | The tag description on Noventi.  |
+
+and a CareReportAttachment object is:
+
+| Field      | Type               | Description                                     |
+| -----------|--------------------|-------------------------------------------------|
+| id         | string             | A string value that represents the unique identifier of the attachment. |
+| fileName   | string             | A small description to identify the file.  |
+| type       | string             | The file type.  |
+| path       | string             | Complete path of the file including the file name to allow its download.  |
+
+#### Possible errors message:
+
+| Error code           | Description                                     |
+| ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
+| 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 500 Server Error     | The server respond the error description if any exception is trow. |
+
+
+### 2.5. Carereport Create
+
+Create a new care report for a patient.
+
+**Method:** POST <br>
+**URL:** /carereport/patient/{personid} <br>
+**Request parameter:**
+
+| Parameter       | Type     | Required   | Description                                     |
+| -------------   |----------|------------|-------------------------------------------------|
+| `personid`      | string   | true       | The patient squirtle unique identifier.         |
+
+#### Example request:
+
+```
+HTTP/1.1
+POST https://treecko.dev.backend.kenbi.systems/carereport/patient/25e9dbb9-7229-4ad9-9d19-afc467e5392f
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
 Content-Type: application/json
 Accept: application/json
 Accept-Charset: utf-8
 
 {
-  "title": "Liverpool FC",
-  "contentFormat": "html",
-  "content": "<h1>Liverpool FC</h1><p>You’ll never walk alone.</p>",
-  "canonicalUrl": "http://jamietalbot.com/posts/liverpool-fc",
-  "tags": ["football", "sport", "Liverpool"],
-  "publishStatus": "public"
+  "date": "2022-04-12T08:00Z",
+  "notifiableType": 1,
+  "careReportType": "97e07657-21a6-4e2b-af5b-50243782adec",
+  "careReportSubType": "96e4f576-231a-49ae-9f9e-95ea244991ac",
+  "description": "Große Pflege",
+  "tags": "Dekubitus, Sturz"
 }
 ```
 
 With the following fields:
 
-| Parameter       | Type         | Required?  | Description                                     |
-| -------------   |--------------|------------|-------------------------------------------------|
-| title           | string       | required   | The title of the post. Note that this title is used for SEO and when rendering the post as a listing, but will not appear in the actual post—for that, the title must be specified in the `content` field as well. Titles longer than 100 characters will be ignored. In that case, a title will be synthesized from the first content in the post when it is published.  |
-| contentFormat   | string       | required   | The format of the "content" field. There are two valid values, "html", and "markdown" |
-| content         | string       | required   | The body of the post, in a valid, semantic, HTML fragment, or Markdown. Further markups may be supported in the future. For a full list of accepted HTML tags, see [here](https://medium.com/@katie/a4367010924e). If you want your title to appear on the post page, you must also include it as part of the post content.                |
-| tags            | string array | optional   | Tags to classify the post. Only the first three will be used. Tags longer than 25 characters will be ignored.                                        |
-| canonicalUrl    | string       | optional   | The original home of this content, if it was originally published elsewhere.                         |
-| publishStatus   | enum         | optional   | The status of the post. Valid values are “public”, “draft”, or “unlisted”. The default is “public”.  |
-| license         | enum         | optional   | The license of the post. Valid values are “all-rights-reserved”, “cc-40-by”, “cc-40-by-sa”, “cc-40-by-nd”, “cc-40-by-nc”, “cc-40-by-nc-nd”, “cc-40-by-nc-sa”, “cc-40-zero”, “public-domain”. The default is “all-rights-reserved”. |
-| notifyFollowers | bool         | optional   | Whether to notifyFollowers that the user has published. |
+| Field                | Type     | Required   | Description                                     |
+| ---------------------|----------|------------|-------------------------------------------------|
+| date                 | datetime | true       | The date and time in UTC that of the report. |
+| notifiableType       | integer  | true       | An integer value to identify the flag related with the report.  |
+| careReportType       | string   | true       | Unique identifier assigned to care report to identify the report type.  |
+| careReportSubType    | string   | optional   | Unique identifier assigned to care report to identify the report subtype.  |
+| description          | string   | true       | Care report's text decription.  |
+| tags                 | string   | optional   | Tags related to the report. This string value should be informed in a comma separeted string value. |
 
-The response is a Post object within a data envelope. Example response:
+The response is a string value with the care report's unique identifier:
+
+#### Example response:
 
 ```
-HTTP/1.1 201 OK
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
 
-{
-  "data": {
-    "id": "e6f36a",
-    "title": "Liverpool FC",
-    "authorId": "5303d74c64f66366f00cb9b2a94f3251bf5",
-    "tags": ["football", "sport", "Liverpool"],
-    "url": "https://medium.com/@majelbstoat/liverpool-fc-e6f36a",
-    "canonicalUrl": "http://jamietalbot.com/posts/liverpool-fc",
-    "publishStatus": "public",
-    "publishedAt": 1442286338435,
-    "license": "all-rights-reserved",
-    "licenseUrl": "https://medium.com/policy/9db0094a1e0f"
-  }
-}
+"457efcb8-e0de-4c7c-b6b0-fd3dda00e432"
 ```
 
-Where a Post object is:
 
-| Field         | Type         | Description                                     |
-| --------------|--------------|-------------------------------------------------|
-| id            | string       | A unique identifier for the post.               |
-| title         | string       | The post’s title                                |
-| authorId      | string       | The userId of the post’s author                 |
-| tags          | string array | The post’s tags                                 |
-| url           | string       | The URL of the post on Medium                   |
-| canonicalUrl  | string       | The canonical URL of the post. If canonicalUrl was not specified in the creation of the post, this field will not be present.  |
-| publishStatus | string       | The publish status of the post.                 |
-| publishedAt   | timestamp    | The post’s published date. If created as a draft, this field will not be present.                                              |
-| license       | enum         | The license of the post.                        |
-| licenseUrl    | string       | The URL to the license of the post.             |
+#### Possible errors message:
 
-Possible errors:
+| Error code           | Description                                     |
+| ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
+| 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 500 Server Error     | The server respond the error description if any exception is trow. |
 
-| Error code           | Description                                                                                                          |
-| ---------------------|----------------------------------------------------------------------------------------------------------------------|
-| 400 Bad Request      | Required fields were invalid, not specified.                                                                         |
-| 401 Unauthorized     | The access token is invalid or has been revoked.                                                                     |
-| 403 Forbidden        | The user does not have permission to publish, or the authorId in the request path points to wrong/non-existent user. |
+### 2.6. Carereport Add Attachment
 
-#### Creating a post under a publication
-This API allows creating a post and associating it with a publication on Medium. The request also shows this association, considering posts a collection of resources under a publication:
+Create a new attachment and add to a existing care report for a patient.
+
+**Method:** POST <br>
+**URL:** /carereport/{id}/patient/{personid} <br>
+**Request parameter:**
+
+| Parameter       | Type     | Required   | Description                                     |
+| -------------   |----------|------------|-------------------------------------------------|
+| `id`            | string   | true       | The care report unique identifier to add the file attachment. |
+| `personid`      | string   | true       | The patient squirtle unique identifier.         |
+
+#### Example request:
 
 ```
-POST https://api.medium.com/v1/publications/{{publicationId}}/posts
-```
-
-Here `publicationId` is the id of the publication the post is being created under. The `publicationId` can be acquired from the API for listing user’s publications.
-
-Example request:
-
-```
-POST /v1/publications/b45573563f5a/posts HTTP/1.1
-Host: api.medium.com
-Authorization: Bearer 181d415f34379af07b2c11d144dfbe35d
+HTTP/1.1
+POST https://treecko.dev.backend.kenbi.systems/carereport/c87aaf42-3129-4eb0-acd8-823516572565/patient/25e9dbb9-7229-4ad9-9d19-afc467e5392f
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjZFN....
 Content-Type: application/json
 Accept: application/json
 Accept-Charset: utf-8
 
 {
-  "title": "Hard things in software development",
-  "contentFormat": "html",
-  "content": "<p>Cache invalidation</p><p>Naming things</p>",
-  "tags": ["development", "design"],
-  "publishStatus": "draft"
+  "extension": "jpg",
+  "file": "AAAAHGZ0eXBpc29tAAACAGlzb21pc28ybXA0MQAAAAhmcmVlAAKZx21kYXTeBABMYXZjNTguMTM0LjEwMABCNZrf7vgAAQMQSQpdwugqpM1Uq6lSqlQpJQih7/ARx7iLPwYkL8M+RUEv5EWeoFCjj4IiETLjI28NWou4tAIVDDEod8RDxJfTH4D+vbBaGB+YD//LxBQ9xDb2RhBbBste8jabEdS1vN8OfG1DtoMWMWh4geIsR2zJDGvFMH68YhuvYRbcRQro46dka3sIpwE50T48AbuPLIyw78/np+6Am+eeba278xw4P2UzNq2+HC/5RNBRDN+EIPqgflKZ88zgicEC0SR8m6LoKqSrqRUqZK3et3FXi5mDfs6ShH/v1EXj5aSTMVVbmtnGDhiyQjUDluz8ZTCLBoEZz//bHH897BIYACRJvDqK9V6hwCEazn/+/AAAfqWyUSRECSX2VXW5l1upOr3nVVdSslSKaiYA5bt9ZZGnRpoxVkO49yWlGMLWy5xDsYpSmpynzlunXvVT6niYZHaHbAnxqBRtkIzurDD+4tE7fGoGwWuPhIUK8yWOqeGgC+hhkgnPI2eV97rIivepEATUjRVLvO86/qWw64Yt7/3NMjBxVHnceDLRbJa8hHWlizVOdo8WFGwJRKKu/BfDK3J4ehLBBLAyeEeyPgcOlTeVdRj1WUpK3mtCFlnxfV6mZQ2aQC5"
 }
 ```
 
-The definition of request data is equal to the regular call to create a post above. The response is identical except for adding one additional field:
+With the following fields:
 
-| Field         | Type         | Description                                                                                                            |
-| --------------|--------------|------------------------------------------------------------------------------------------------------------------------|
-| publicationId | string       | ID of the publication this post was created under. This matches the publication ID requested in the URL of the request |
+| Field                | Type     | Required   | Description                                     |
+| ---------------------|----------|------------|-------------------------------------------------|
+| extension            | string   | true       | The file extension. The possible values are the following: - JPG or PNG for image format.<br> MP3 for audio format. <br> PDF for file format.) |
+| file                 | string   | true       | The file content converted to base64.  |
 
-There are additional rules around publishing that each request to this API must respect:
-- If the authenticated user is an 'editor' for the publication, they can create posts with any publish status. Posts published as 'public' or 'unlisted' will appear in collection immediately, while posts created as 'draft' will remain in pending state under publication.
-- If the authenticated user is a 'writer' for the chosen publication, they can only create a post as a 'draft'. That post will remain in pending state under publication until an editor for the publication approves it.
-- If the authenticated user is neither a 'writer' nor an 'editor', they are not allowed to create any posts in a publication.
 
-Possible errors:
+The response is a string value with the attachment unique identifier:
 
-| Error code           | Description                                                                                        |
-| ---------------------|----------------------------------------------------------------------------------------------------|
-| 400 Bad Request      | Required fields were invalid, not specified.                                                       |
-| 401 Unauthorized     | The access token is invalid or has been revoked.                                                   |
-| 403 Forbidden        | The `publicationId` in request path doesn’t point to a publication that the user can publish into. |
-
-### 3.4. Images
-
-#### Uploading an image
-
-Most integrations will not need to use this resource. **Medium will automatically side-load any images specified by the src attribute on an `<img>` tag in post content when creating a post.** However, if you are building a desktop integration and have local image files that you wish to send, you may use the images endpoint.
-
-Unlike other API endpoints, this requires multipart form-encoded data.
+#### Example response:
 
 ```
-POST https://api.medium.com/v1/images
-```
-
-Example request:
-
-```
-POST /v1/images HTTP/1.1
-Host: api.medium.com
-Authorization: Bearer 181d415f34379af07b2c11d144dfbe35d
-Content-Type: multipart/form-data; boundary=FormBoundaryXYZ
-Accept: application/json
-Accept-Charset: utf-8
-
---FormBoundaryXYZ
-Content-Disposition: form-data; name="image"; filename="filename.png"
-Content-Type: image/png
-
-IMAGE_DATA
---FormBoundaryXYZ--
-```
-
-The field name must be `image`. All lines in the body must be terminated with `\r\n`. Only one image may be sent per request. The following image content types are supported:
-
-* `image/jpeg`
-* `image/png`
-* `image/gif`
-* `image/tiff`
-
-Animated gifs are supported. Use your power for good.
-
-The response is an Image object within a data envelope. Example response:
-
-```
-HTTP/1.1 201 OK
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
 
-{
-  "data": {
-    "url": "https://images.medium.com/0*fkfQiTzT7TlUGGyI.png",
-    "md5": "fkfQiTzT7TlUGGyI"
-  }
-}
+"969fb441fe254cbfbd205a6d96bb1850"
 ```
 
-Where an Image object is:
 
-| Field         | Type        | Description                                     |
-| --------------|-------------|-------------------------------------------------|
-| url           | string      | The URL of the image.                           |
-| md5           | string      | An MD5 hash of the image data.                  |
+#### Possible errors message:
 
-You may choose to persist the md5 and url of uploaded images in a local store, so that you can quickly determine in future whether an image needs to be uploaded to Medium, or if an existing URL can be reused.
-
-
-## 4. Testing
-
-We do not have a sandbox environment yet. To test, please feel free to create a testing account. *We recommend you do this by registering using an email address rather than Facebook or Twitter, as registering with the latter two automatically creates follower relationships on Medium between your connections on those networks.*
-
-These endpoints will perform actions on production data on `medium.com`. **Please test with care.**
+| Error code           | Description                                     |
+| ---------------------|-------------------------------------------------|
+| 400 Bad Request      | The `resquest` is invalid or is not formated properly. |
+| 401 Unauthorized     | The `accessToken` is invalid or has been revoked. |
+| 500 Server Error     | The server respond the error description if any exception is trow. |
